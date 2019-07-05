@@ -1,0 +1,93 @@
+version: '3.1'
+services:
+    database:
+        image: mariadb:latest
+        container_name: db-container
+        command:
+            - "--character-set-server=utf8"
+            - "--collation-server=utf8_unicode_ci"
+        ports:
+            - "3307:3306" # (*)
+        restart: always
+        environment:
+            MYSQL_ROOT_USER: root
+            MYSQL_ROOT_PASSWORD: dbrootpassword
+            MYSQL_DATABASE: wordpressdb
+            MYSQL_USER: wordpressdbu
+            MYSQL_PASSWORD: wordpressdbpassword
+        volumes: 
+          - ./mysql_data:/var/lib/mysql
+          - ./initdb-data:/docker-entrypoint-initdb.d
+
+    web:
+        depends_on:
+            - database
+        image: wordpress:latest # Apache
+        container_name: web-container
+        ports:
+            - "8000:80" # (*)
+        restart: always
+        volumes:
+            - ./public:/var/www/html
+#           - ./my-dev-theme:/var/www/html/wp-content/themes/my-dev-theme  #($)
+        environment:
+            WORDPRESS_DB_HOST: database:3306
+            WORDPRESS_DB_NAME: wordpressdb
+            WORDPRESS_DB_USER: wordpressdbu
+            WORDPRESS_DB_PASSWORD: wordpressdbpassword
+#    phpmyadmin:
+#        depends_on:
+#            - database
+#        image: phpmyadmin/phpmyadmin
+#        container_name: pma-container
+#        ports:
+#            - 8080:80 # (*)
+#        restart: always
+#        environment:
+#            PMA_ARBITRARY: 1
+#            PMA_HOST: database
+#            PMA_USER: root
+#            PMA_PASSWORD: dbrootpassword
+
+    wordmove:
+        tty: true
+        depends_on:
+            - web
+        image: mfuezesi/wordmove
+        restart: always
+        container_name: wordmove-container  # (+)
+        volumes:
+            - ./config:/home
+            - ./public:/var/www/html
+            - ~/.ssh:/root/.ssh      # (!)
+    cli:
+        image: wordpress:cli
+        container_name: wpcli-container
+        restart: always
+        volumes:
+            - ./public:/var/www/html
+
+#######################################
+#
+# In case you want to reuse this config
+# for another Wordpress project and
+# them have both run *simultaneously*
+# you'll need to:
+#
+# - change wordmove's container_name
+#   to anything else - marked as (+)
+#   e.g. wordmove123
+# - change the first number of ports
+#   to another one   - marked as (*)
+#   "&lt;new_host_port>:&lt;container_port>"
+#   e.g.
+#    - change wordpres port numbers
+#      from "8000:80" to "8001:80"
+#    - change phmyadmin port numbers
+#      from "8080:80" to "8081:80
+#    - change database port numbers
+#      form "3307:3306" to "3308:3306"
+#
+# (!) Copy your local .ssh keys only if
+#     necessary to connect to remote
+#######################################
